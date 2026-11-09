@@ -1,0 +1,4 @@
+Neu in dieser Version:
+- Sie tragen die Daten des Kunden selbst ein, der Kunde ergänzt über den Link nur noch seine Notfallkontakte.
+- Der Reiter „Termine“ entfällt. Termin-Datum ist der Tag, an dem der Notfallordner erstellt wird.
+- Updates lassen sich jetzt direkt in den Einstellungen einspielen.

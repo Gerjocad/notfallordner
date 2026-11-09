@@ -1,0 +1,114 @@
+name: Notfallordner Windows-Programm
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "programm/**"
+      - "gemeinsam/**"
+      - "briefkasten/**"
+      - ".github/workflows/notfallordner.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  briefkasten:
+    name: Briefkasten bauen
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: briefkasten
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: worker.js bauen
+        run: node build.mjs
+      - name: Syntax prüfen
+        run: node --check dist/worker.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Briefkasten-worker.js
+          path: briefkasten/dist/worker.js
+
+  windows:
+    name: Windows-Programm bauen und testen
+    runs-on: windows-latest
+    permissions:
+      contents: write  # für das Veröffentlichen neuer Versionen
+    defaults:
+      run:
+        working-directory: programm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Abhängigkeiten installieren
+        run: python -m pip install -r requirements.txt
+      - name: Tests (unter Windows, mit DPAPI)
+        run: python -m pytest -q tests
+      - name: Version und Update-Adresse festlegen
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path nfo/__init__.py -Pattern '__version__ = "(.+)"').Matches[0].Groups[1].Value
+          "version=$v" >> $env:GITHUB_OUTPUT
+          $url = "https://github.com/${{ github.repository }}/releases/latest/download/update.json"
+          "UPDATE_URL = `"$url`"" | Out-File -Encoding utf8 nfo/_quelle.py
+          Write-Host "Version $v, Updates von $url"
+      - name: .exe bauen
+        run: >
+          pyinstaller --noconfirm --onefile --windowed --name Notfallordner --icon icon.ico
+          --add-data "ui;ui" --add-data "../gemeinsam/felder.js;."
+          --hidden-import win32timezone --collect-submodules webview
+          start.py
+      - name: .exe starten und prüfen
+        shell: pwsh
+        run: |
+          $daten = Join-Path $env:RUNNER_TEMP "nfo-daten"
+          $p = Start-Process -FilePath "dist\Notfallordner.exe" -ArgumentList "--ohne-fenster","--kein-abruf","--port","8765","--daten",$daten -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 30 -and -not $ok; $i++) {
+            Start-Sleep -Seconds 2
+            try { $r = Invoke-WebRequest -Uri "http://127.0.0.1:8765/" -UseBasicParsing; $ok = $r.Content -match "app.js" } catch {}
+          }
+          Stop-Process -Id $p.Id -Force
+          if (-not $ok) { throw "Programm hat nicht geantwortet" }
+          Write-Host "Programm gestartet und Oberfläche erreichbar"
+      - name: update.json erstellen
+        shell: pwsh
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          $sha = (Get-FileHash dist/Notfallordner.exe -Algorithm SHA256).Hash.ToLower()
+          $info = [ordered]@{
+            version  = $v
+            url      = "https://github.com/${{ github.repository }}/releases/download/v$v/Notfallordner.exe"
+            sha256   = $sha
+            hinweise = (Get-Content hinweise.txt -Raw -Encoding utf8).Trim()
+          }
+          $info | ConvertTo-Json | Out-File -Encoding utf8 dist/update.json
+          Get-Content dist/update.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Notfallordner-Windows
+          path: |
+            programm/dist/Notfallordner.exe
+            programm/dist/update.json
+      - name: Neue Version veröffentlichen (nur öffentliches Repository, nur wenn die Version neu ist)
+        if: ${{ !github.event.repository.private }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          gh release view "v$v" --repo "${{ github.repository }}" 2>$null
+          if ($LASTEXITCODE -eq 0) { Write-Host "Version $v gibt es schon – nichts zu tun"; exit 0 }
+          node ../briefkasten/build.mjs
+          gh release create "v$v" dist/Notfallordner.exe dist/update.json ../briefkasten/dist/worker.js `
+            --repo "${{ github.repository }}" --target "${{ github.sha }}" `
+            --title "Notfallordner $v" --notes-file hinweise.txt
+          Write-Host "Version $v veröffentlicht"

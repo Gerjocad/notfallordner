@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Notfallordner – Ihre Notfallkontakte</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<style>
+:root {
+  --bg: #f3f4f6; --surface: #ffffff; --ink: #1d232b; --muted: #5d6673; --line: #d9dde3;
+  --accent: #b3262e; --accent-soft: #f8e4e5; --accent-ink: #ffffff; --ok: #1f7a4d; --ok-soft: #e1f2e9; --focus: #2b5fd9;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #15181d; --surface: #1e232a; --ink: #e8eaee; --muted: #9aa3af; --line: #343b45;
+    --accent: #ef6a70; --accent-soft: #3a2226; --accent-ink: #1a0d0e; --ok: #5bc48e; --ok-soft: #1d3329; --focus: #7da2ff; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.5;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left)); }
+[hidden] { display: none !important; }
+.wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; align-items: center; gap: 12px; padding-top: 8px; }
+.cross { width: 40px; height: 40px; border-radius: 9px; background: var(--accent); display: grid; place-items: center; flex: none; }
+.cross::before { content: ""; width: 20px; height: 20px; background:
+  linear-gradient(var(--accent-ink),var(--accent-ink)) center/6px 20px no-repeat, linear-gradient(var(--accent-ink),var(--accent-ink)) center/20px 6px no-repeat; }
+h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(1.6rem, 5vw, 2.1rem); margin: 0; line-height: 1.1; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 1.25rem; margin: 0; }
+h3 { font-size: 1rem; margin: 0; }
+p { margin: 0; }
+.hint { color: var(--muted); font-size: 0.92rem; }
+section.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.intro { display: grid; gap: 8px; }
+.lock { display: flex; gap: 10px; align-items: flex-start; background: var(--ok-soft); border-radius: 10px; padding: 12px 14px; font-size: 0.93rem; }
+.lock b { color: var(--ok); }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 14px; }
+.f { display: grid; gap: 4px; min-width: 0; }
+.f label { font-size: 0.82rem; font-weight: 700; color: var(--muted); }
+.f .msg { font-size: 0.8rem; line-height: 1.3; color: var(--muted); height: 2.6em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.f.invalid input { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.f.invalid .msg { color: var(--accent); font-weight: 700; }
+.f.valid input { border-color: var(--ok); }
+.f.valid .msg { color: var(--ok); }
+input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%; min-height: 44px; }
+input::placeholder { color: var(--muted); opacity: .6; }
+button { font: inherit; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 9px 14px; cursor: pointer; min-height: 44px; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 1.05rem; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.contact { border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; }
+.contact-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.consent { display: flex; gap: 10px; align-items: flex-start; font-size: 0.93rem; }
+.consent input { width: 22px; height: 22px; min-height: 0; flex: none; margin-top: 2px; accent-color: var(--accent); }
+.summary { padding: 10px 12px; border-radius: 8px; background: var(--bg); font-size: 0.93rem; }
+.summary.warn { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.issues { margin: 0; padding-left: 20px; font-size: 0.9rem; color: var(--accent); display: grid; gap: 2px; }
+.issues button { border: 0; background: none; color: inherit; padding: 0; min-height: 0; text-decoration: underline; text-align: left; font-size: inherit; }
+.center { text-align: center; display: grid; gap: 10px; justify-items: center; padding: 32px 18px; }
+.big { font-size: 3rem; line-height: 1; }
+#err { color: var(--accent); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="cross" aria-hidden="true"></div><h1>Notfallordner</h1></header>
+
+  <section class="card center" id="laden"><p class="hint">Formular wird geladen …</p></section>
+
+  <section class="card center" id="ungueltig" hidden>
+    <div class="big" aria-hidden="true">🔒</div>
+    <h2 id="ungueltigTitel">Dieser Link ist nicht mehr gültig</h2>
+    <p class="hint" id="ungueltigText">Bitte fragen Sie Ihren Berater nach einem neuen Link.</p>
+  </section>
+
+  <section class="card center" id="fertig" hidden>
+    <div class="big" aria-hidden="true">✓</div>
+    <h2>Vielen Dank! Ihre Notfallkontakte sind angekommen.</h2>
+    <p class="hint">Ihr Berater meldet sich bei Ihnen. Sie können dieses Fenster jetzt schließen.</p>
+  </section>
+
+  <form id="formular" hidden novalidate>
+    <div class="wrap">
+      <section class="card intro">
+        <h2>Ihre Notfallkontakte</h2>
+        <p>Für Ihren Notfallordner benötigt Ihr Berater <b id="beraterName">–</b> noch die Personen, die im Notfall verständigt werden sollen. Bitte tragen Sie mindestens eine und höchstens drei Personen ein. Felder mit * werden benötigt.</p>
+        <div class="lock"><span aria-hidden="true">🔒</span><span><b>Ende-zu-Ende verschlüsselt:</b> Ihre Angaben werden schon auf Ihrem Gerät verschlüsselt. Lesen kann sie nur Ihr Berater.</span></div>
+      </section>
+
+      <section class="card" aria-labelledby="h-nf">
+        <h2 id="h-nf">Notfallkontakte</h2>
+        <p class="hint">Am besten Personen aus Ihrem nahen Umfeld, die gut erreichbar sind.</p>
+        <div id="kontakte" style="display:grid;gap:12px"></div>
+        <button type="button" id="mehr">+ Weiteren Notfallkontakt hinzufügen</button>
+      </section>
+
+      <section class="card">
+        <h2>Absenden</h2>
+        <div class="summary" id="summary"></div>
+        <ul class="issues" id="issues" hidden></ul>
+        <label class="consent"><input type="checkbox" id="ok"><span>Ich bin einverstanden, dass diese Angaben an meinen Berater übermittelt und für meinen Notfallordner verwendet werden. Die eingetragenen Personen sind damit einverstanden, als Notfallkontakt genannt zu werden. <span id="dsHinweis"></span></span></label>
+        <button type="submit" class="primary" id="senden">Verschlüsselt senden</button>
+        <p id="err" role="alert"></p>
+      </section>
+    </div>
+  </form>
+</div>
+<div id="lists"></div>
+
+<script>/*FELDER_JS*/</script>
+<script>
+(() => {
+  const N = window.NFO, $ = (id) => document.getElementById(id);
+  const eid = decodeURIComponent(location.pathname.split("/").pop() || "");
+  const ENTWURF = "nfo-entwurf-" + eid;
+  let daten = { nf: [{}, {}, {}] }, anzahl = 1, schluessel = null;
+  try { const d = JSON.parse(sessionStorage.getItem(ENTWURF) || "null"); if (d && d.daten) { daten = d.daten; anzahl = d.anzahl || 1; } } catch (e) {}
+  const merken = () => { try { sessionStorage.setItem(ENTWURF, JSON.stringify({ daten, anzahl })); } catch (e) {} };
+  $("lists").innerHTML = N.datalists();
+
+  function render() {
+    $("kontakte").innerHTML = [0, 1, 2].slice(0, anzahl).map((i) =>
+      `<div class="contact"><div class="contact-head"><h3>${i + 1}. Notfallkontakt</h3>${i > 0 && i === anzahl - 1 ? `<button type="button" data-weg="${i}">Entfernen</button>` : ""}</div>${N.fieldsHtml("nf." + i, N.F_NF, daten.nf[i])}</div>`
+    ).join("");
+    $("mehr").hidden = anzahl >= 3;
+    document.querySelectorAll("input[data-path]").forEach((el) => N.showCheck(el, true, ctx()));
+    zusammenfassung();
+  }
+  const ctx = () => ({});
+  const obj = (path) => daten.nf[+path.split(".")[1]];
+  const probleme = () => N.collectIssues({ nf: daten.nf.slice(0, anzahl) }, null, true);
+  function zusammenfassung() {
+    const p = probleme(), s = $("summary");
+    if (!p.length) { s.className = "summary"; s.textContent = "Alles vollständig. Sie können jetzt senden."; }
+    else {
+      const inv = p.filter((x) => x.kind === "invalid").length, mis = p.length - inv;
+      s.className = "summary warn";
+      s.textContent = [inv ? `${inv} Eingabe${inv === 1 ? "" : "n"} prüfen` : "", mis ? `${mis} Pflichtfeld${mis === 1 ? "" : "er"} leer` : ""].filter(Boolean).join(" · ");
+    }
+  }
+  document.addEventListener("input", (e) => {
+    const el = e.target; if (!el.dataset || !el.dataset.path) return;
+    obj(el.dataset.path)[el.dataset.key] = el.value;
+    N.showCheck(el, false, ctx());
+    merken(); zusammenfassung();
+  });
+  document.addEventListener("focusout", (e) => {
+    const el = e.target; if (!el.dataset || !el.dataset.path) return;
+    const n = N.tidyValue(el.dataset.key, el.value);
+    if (n !== el.value) { el.value = n; obj(el.dataset.path)[el.dataset.key] = n; merken(); }
+    N.showCheck(el, true, ctx()); zusammenfassung();
+  });
+  $("mehr").onclick = () => { anzahl = Math.min(3, anzahl + 1); merken(); render(); document.getElementById(`in-nf-${anzahl - 1}-anrede`).focus(); };
+  $("kontakte").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-weg]"); if (!b) return;
+    daten.nf[+b.dataset.weg] = {}; anzahl--; merken(); render();
+  });
+  $("issues").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-ziel]"); if (!b) return;
+    const el = document.getElementById(b.dataset.ziel); if (el) { el.scrollIntoView({ block: "center", behavior: "smooth" }); el.focus({ preventScroll: true }); }
+  });
+
+  // ---------- Verschlüsseln ----------
+  const b64 = (buf) => { let s = ""; const b = new Uint8Array(buf); for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); };
+  const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  async function verschluesseln(inhalt) {
+    const pub = await crypto.subtle.importKey("spki", unb64(schluessel.pub), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
+    const aes = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt"]);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aes, new TextEncoder().encode(JSON.stringify(inhalt)));
+    const roh = await crypto.subtle.exportKey("raw", aes);
+    const key = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, pub, roh);
+    return { v: 1, kid: schluessel.kid, key: b64(key), iv: b64(iv), data: b64(data) };
+  }
+
+  $("formular").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("err").textContent = "";
+    const p = probleme();
+    const ul = $("issues");
+    if (p.length) {
+      ul.hidden = false;
+      ul.innerHTML = p.map((x) => `<li><button type="button" data-ziel="in-${x.path.replace(/\./g, "-")}-${x.k}">${N.esc(x.text)}</button> – ${N.esc(x.why)}</li>`).join("");
+      document.querySelectorAll("input[data-path]").forEach((el) => N.showCheck(el, true, ctx()));
+      $("err").textContent = "Bitte zuerst die markierten Angaben ergänzen oder korrigieren.";
+      return;
+    }
+    ul.hidden = true;
+    if (!$("ok").checked) { $("err").textContent = "Bitte bestätigen Sie die Einverständniserklärung."; $("ok").focus(); return; }
+    const btn = $("senden"); btn.disabled = true; btn.textContent = "Wird verschlüsselt und gesendet …";
+    try {
+      const umschlag = await verschluesseln({ nf: daten.nf.slice(0, anzahl), gesendet: new Date().toISOString() });
+      const r = await fetch("/api/submit/" + encodeURIComponent(eid), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(umschlag) });
+      const a = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(a.error || "Senden fehlgeschlagen");
+      try { sessionStorage.removeItem(ENTWURF); } catch (e2) {}
+      $("formular").hidden = true; $("fertig").hidden = false; window.scrollTo(0, 0);
+    } catch (err) {
+      $("err").textContent = (err && err.message ? err.message : "Senden fehlgeschlagen") + ". Bitte erneut versuchen.";
+      btn.disabled = false; btn.textContent = "Verschlüsselt senden";
+    }
+  });
+
+  // ---------- Start ----------
+  (async () => {
+    const zeige = (id) => { $("laden").hidden = true; $(id).hidden = false; };
+    try {
+      if (!window.crypto || !crypto.subtle) throw new Error("alt");
+      const [s, k] = await Promise.all([fetch("/api/invite/" + encodeURIComponent(eid)).then((r) => r.json()), fetch("/api/key").then((r) => r.ok ? r.json() : null)]);
+      if (s.status === "verwendet") { $("ungueltigTitel").textContent = "Ihre Notfallkontakte wurden bereits gesendet"; $("ungueltigText").textContent = "Dieser Link kann nur einmal verwendet werden. Für Änderungen wenden Sie sich bitte an Ihren Berater."; return zeige("ungueltig"); }
+      if (s.status !== "offen" || !k) return zeige("ungueltig");
+      schluessel = k;
+      const b = k.berater || {};
+      $("beraterName").textContent = b.name || "–";
+      $("dsHinweis").textContent = b.datenschutz ? b.datenschutz : (b.name ? `Verantwortlich für die Verarbeitung ist ${b.name}${b.mail ? ", " + b.mail : ""}.` : "");
+      document.title = "Notfallordner – Ihre Notfallkontakte";
+      zeige("formular");
+      render();
+    } catch (e) {
+      $("ungueltigTitel").textContent = "Das Formular konnte nicht geladen werden";
+      $("ungueltigText").textContent = e && e.message === "alt" ? "Ihr Browser ist zu alt. Bitte öffnen Sie den Link in einem aktuellen Browser." : "Bitte prüfen Sie Ihre Internetverbindung und laden Sie die Seite neu.";
+      zeige("ungueltig");
+    }
+  })();
+})();
+</script>
+</body>
+</html>

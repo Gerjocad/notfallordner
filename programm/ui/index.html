@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notfallordner</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><div class="cross" aria-hidden="true"></div><span>Notfallordner</span></div>
+    <button class="primary" id="btnNeu" type="button">+ Neuer Kunde</button>
+    <input id="suche" type="search" placeholder="Kunden suchen …" aria-label="Kunden suchen">
+    <div class="filter" role="group" aria-label="Filter">
+      <button type="button" data-filter="alle" class="on">Alle</button>
+      <button type="button" data-filter="eingegangen">Eingegangen</button>
+      <button type="button" data-filter="eingeladen">Warten</button>
+      <button type="button" data-filter="erneuerung">Erneuerung</button>
+    </div>
+    <ul class="liste" id="liste" aria-label="Kunden"></ul>
+    <div class="sidefoot">
+      <div class="abruf" id="abruf"></div>
+      <div class="row">
+        <button type="button" id="btnAbrufen" class="small">Jetzt prüfen</button>
+        <button type="button" id="btnEinst" class="small">Einstellungen</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main" id="main" tabindex="-1"></main>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+<div id="lists"></div>
+
+<script src="felder.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

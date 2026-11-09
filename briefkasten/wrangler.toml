@@ -1,0 +1,11 @@
+# Nur für die Einrichtung per Kommandozeile (npx wrangler deploy).
+# Für die Einrichtung im Browser siehe EINRICHTUNG.md – dann wird diese Datei nicht gebraucht.
+name = "notfallordner"
+main = "dist/worker.js"
+compatibility_date = "2026-01-01"
+
+[[kv_namespaces]]
+binding = "NFO"
+id = "HIER_DIE_KV_ID_EINTRAGEN"
+
+# Zugangsschlüssel setzen mit:  npx wrangler secret put ADMIN_TOKEN
