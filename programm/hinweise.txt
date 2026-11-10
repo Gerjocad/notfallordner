@@ -1,4 +1,4 @@
 Neu in dieser Version:
-- Sie tragen die Daten des Kunden selbst ein, der Kunde ergänzt über den Link nur noch seine Notfallkontakte.
-- Der Reiter „Termine“ entfällt. Termin-Datum ist der Tag, an dem der Notfallordner erstellt wird.
-- Updates lassen sich jetzt direkt in den Einstellungen einspielen.
+- Kopier-Assistent: Beim Kunden auf „Aus CRM übernehmen“ klicken. Ein kleines Fenster bleibt im Vordergrund und sagt, welches Feld als Nächstes dran ist. Im CRM markieren, Strg+C drücken – das Programm trägt den Wert ein und springt weiter.
+- Reihenfolge: Anrede, Vorname, Name, Geburtsdatum, Geburtsort, Straße, PLZ/Ort, Ausweisnummer, SV-Nummer, Steuer-ID, IBAN. Fehlende Felder einfach überspringen.
+- Datum, IBAN, Steuer-ID und SV-Nummer werden automatisch in die richtige Form gebracht.

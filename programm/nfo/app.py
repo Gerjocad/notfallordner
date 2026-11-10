@@ -13,6 +13,8 @@ from datetime import date, datetime
 from pathlib import Path
 
 from . import __version__, krypto, merge, pdf, update, werte
+from . import assistent as kopier
+from .zwischenablage import Zwischenablage
 from .briefkasten import Briefkasten, BriefkastenFehler
 from .speicher import Speicher, dokumente_ordner
 
@@ -38,6 +40,12 @@ class App:
         self._stop = threading.Event()
         self.update_info: dict | None = None
         self.neustart = None  # wird von __main__ gesetzt: startet die neue .exe und beendet dieses Programm
+        # Kopier-Assistent
+        self.ass: dict | None = None
+        self.ass_lock = threading.RLock()
+        self.ablage = Zwischenablage()
+        self.assistent_fenster = None  # von __main__ gesetzt: öffnet das kleine Fenster, gibt True zurück
+        self.assistent_fenster_zu = None
 
     # ---------- Einstellungen ----------
     def _bk(self) -> Briefkasten | None:
@@ -203,6 +211,8 @@ class App:
         k = self.sp.kunde(kid)
         if not k:
             raise AppFehler("Kunde nicht gefunden")
+        if self.ass and self.ass["kid"] == kid and not self.ass["fertig"]:
+            raise AppFehler("ASSISTENT_AKTIV")  # der Kopier-Assistent schreibt gerade in diesen Kunden
         if (k["eingang"] or None) != (stand or None):
             # Inzwischen sind Daten vom Kunden eingegangen: nicht mit dem alten Stand überschreiben
             raise AppFehler("NEUE_DATEN")
@@ -329,6 +339,97 @@ class App:
             subprocess.Popen(["open", str(p)])
         else:
             subprocess.Popen(["xdg-open", str(p)])
+
+    # ---------- Kopier-Assistent ----------
+    def assistent_start(self, kid: str) -> dict:
+        if not self.sp.kunde(kid):
+            raise AppFehler("Kunde nicht gefunden")
+        with self.ass_lock:
+            self.ass = {"kid": kid, "schritt": 0, "seq": self.ablage.sequenz(), "fertig": False, "version": 0,
+                        "erledigt": set()}
+        if self.ablage.ok:
+            threading.Thread(target=self._assistent_beobachten, daemon=True, name="zwischenablage").start()
+        fenster = bool(self.assistent_fenster and self.assistent_fenster())
+        out = self.assistent_status()
+        out["eigenes_fenster"] = fenster
+        return out
+
+    def assistent_status(self) -> dict:
+        a = self.ass
+        if not a:
+            return {"aktiv": False, "fertig": True}
+        k = self.sp.kunde(a["kid"])
+        if not k:
+            return {"aktiv": False, "fertig": True}
+        werte_ = k["daten"]["kunde"]
+        return {
+            "aktiv": not a["fertig"], "fertig": a["fertig"], "kid": a["kid"], "version": a["version"],
+            "schritt": a["schritt"], "gesamt": len(kopier.SCHRITTE), "zwischenablage": self.ablage.ok,
+            "name": werte.anzeige_name(k["daten"]) or k["daten"].get("bezeichnung", ""),
+            "schritte": [{"feld": f, "label": l, "wert": werte_.get(f, ""), "erledigt": f in a["erledigt"]}
+                         for f, l in kopier.SCHRITTE],
+        }
+
+    def assistent_wert(self, text: str) -> dict:
+        """Wert für das aktuelle Feld übernehmen (aus der Zwischenablage oder eingetippt)."""
+        with self.ass_lock:
+            a = self.ass
+            if not a or a["fertig"] or not str(text or "").strip():
+                return self.assistent_status()
+            feld = kopier.SCHRITTE[a["schritt"]][0]
+            wert, weitere = kopier.aufbereiten(feld, str(text))
+            k = self.sp.kunde(a["kid"])
+            daten = k["daten"]
+            daten["kunde"][feld] = wert
+            daten["kunde"].update(weitere)
+            self.sp.aktualisiere(a["kid"], daten=daten)
+            a["erledigt"].update([feld, *weitere])
+            self._assistent_weiter()
+            return self.assistent_status()
+
+    def _assistent_weiter(self) -> None:
+        a = self.ass
+        a["version"] += 1
+        n = a["schritt"] + 1
+        while n < len(kopier.SCHRITTE) and kopier.SCHRITTE[n][0] in a["erledigt"]:
+            n += 1  # z. B. PLZ/Ort wurde schon zusammen mit der Straße übernommen
+        if n >= len(kopier.SCHRITTE):
+            a["fertig"] = True
+            if self.assistent_fenster_zu:
+                threading.Timer(1.2, self.assistent_fenster_zu).start()
+        else:
+            a["schritt"] = n
+
+    def assistent_aktion(self, aktion: str) -> dict:
+        with self.ass_lock:
+            a = self.ass
+            if not a:
+                return self.assistent_status()
+            if aktion == "zurueck":
+                a["schritt"] = max(0, a["schritt"] - 1)
+                a["fertig"] = False
+                a["version"] += 1
+            elif aktion == "ueberspringen":
+                self._assistent_weiter()
+            elif aktion == "beenden":
+                a["fertig"] = True
+                a["version"] += 1
+                if self.assistent_fenster_zu:
+                    threading.Timer(0.3, self.assistent_fenster_zu).start()
+            # Zwischenablage ab jetzt neu beobachten (alter Inhalt zählt nicht)
+            a["seq"] = self.ablage.sequenz()
+            return self.assistent_status()
+
+    def _assistent_beobachten(self) -> None:
+        eigenes = self.ass
+        while self.ass is eigenes and not eigenes["fertig"] and not self._stop.is_set():
+            seq = self.ablage.sequenz()
+            if seq != eigenes["seq"]:
+                eigenes["seq"] = seq
+                text = self.ablage.text()
+                if text and text.strip():
+                    self.assistent_wert(text)
+            time.sleep(0.25)
 
     # ---------- Programm-Update ----------
     def update_pruefen(self) -> dict:

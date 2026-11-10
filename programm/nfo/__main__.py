@@ -90,6 +90,27 @@ def main(argv=None) -> int:
         try:
             import webview  # pywebview: eigenes Programmfenster (Edge WebView2)
             webview.create_window("Notfallordner", server.url, width=1320, height=900, min_size=(900, 640))
+            klein = {"w": None}
+
+            def assistent_auf() -> bool:
+                if klein["w"] is not None:
+                    try:
+                        klein["w"].destroy()
+                    except Exception:  # noqa: BLE001
+                        pass
+                url = server.url.replace("/#t=", "/assistent.html#t=")
+                klein["w"] = webview.create_window("Kopier-Assistent", url, width=400, height=560,
+                                                   on_top=True, resizable=True, min_size=(340, 420))
+                return True
+
+            def assistent_zu() -> None:
+                if klein["w"] is not None:
+                    try:
+                        klein["w"].destroy()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    klein["w"] = None
+            app.assistent_fenster, app.assistent_fenster_zu = assistent_auf, assistent_zu
             webview.start()
             app.stop()
             return 0

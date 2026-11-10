@@ -70,6 +70,10 @@ class Server:
             "vorlage_setzen": lambda d: app.vorlage_setzen(base64.b64decode(d["inhalt"]), d.get("name", "")),
             "sicherung_erstellen": lambda d: app.sicherung_erstellen(d.get("passwort", "")),
             "update_pruefen": lambda d: app.update_pruefen(),
+            "assistent_start": lambda d: app.assistent_start(d["id"]),
+            "assistent_status": lambda d: app.assistent_status(),
+            "assistent_wert": lambda d: app.assistent_wert(d.get("text", "")),
+            "assistent_aktion": lambda d: app.assistent_aktion(d.get("aktion", "")),
             "update_installieren": lambda d: app.update_installieren(),
             "sicherung_laden": lambda d: app.sicherung_laden(base64.b64decode(d["inhalt"]), d.get("passwort", "")),
         }

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kopier-Assistent</title>
+<link rel="stylesheet" href="app.css">
+<style>
+body { overflow: auto; }
+.ass { padding: 16px; display: grid; gap: 12px; }
+.kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.kopf h1 { font-size: 1.1rem; }
+.fort { height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.fort i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.jetzt { background: var(--accent-soft); border-radius: 12px; padding: 14px 16px; display: grid; gap: 6px; }
+.jetzt small { color: var(--muted); font-weight: 600; }
+.jetzt b { font-family: var(--f-display); font-size: 1.55rem; line-height: 1.15; color: var(--accent); }
+.jetzt .tipp { font-size: 0.85rem; color: var(--ink); }
+.liste2 { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 0.86rem; max-height: 210px; overflow-y: auto; }
+.liste2 li { display: grid; grid-template-columns: 18px 130px 1fr; gap: 6px; padding: 3px 4px; border-radius: 6px; }
+.liste2 li.akt { background: var(--bg); font-weight: 700; }
+.liste2 .w { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.liste2 .ok { color: var(--ok); }
+.knoepfe { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.fertig { text-align: center; padding: 30px 10px; display: grid; gap: 8px; }
+.fertig b { font-size: 2.4rem; color: var(--ok); }
+</style>
+</head>
+<body>
+<div class="ass" id="ass">
+  <div class="kopf"><h1>Kopier-Assistent</h1><span class="hint" id="zaehler"></span></div>
+  <div class="fort"><i id="balken" style="width:0"></i></div>
+  <div class="hint" id="kunde"></div>
+  <div class="jetzt" id="jetzt">
+    <small>Bitte im CRM markieren und Strg+C drücken:</small>
+    <b id="feld">…</b>
+    <span class="tipp" id="tipp"></span>
+  </div>
+  <div class="row" id="anredeKnoepfe" hidden><button type="button" data-anrede="Herr">Herr</button><button type="button" data-anrede="Frau">Frau</button></div>
+  <form id="handForm" class="row" style="flex-wrap:nowrap">
+    <input id="hand" autocomplete="off" placeholder="oder hier einfügen / eintippen" aria-label="Wert von Hand eingeben">
+    <button type="submit">OK</button>
+  </form>
+  <div class="knoepfe">
+    <button type="button" id="zurueck">◀ Zurück</button>
+    <button type="button" id="weiter">Überspringen</button>
+    <button type="button" id="ende">Fertig</button>
+  </div>
+  <ul class="liste2" id="liste"></ul>
+</div>
+<div class="fertig" id="fertig" hidden><b>✓</b><h2>Stammdaten übernommen</h2><p class="hint">Das Fenster schließt sich gleich. Bitte die Daten im Programm kurz prüfen.</p></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  let TOKEN = "";
+  const m = /#t=([\w-]+)/.exec(location.hash);
+  if (m) TOKEN = m[1];
+  else { try { TOKEN = sessionStorage.getItem("nfo-token") || ""; } catch (e) {} }
+  async function api(name, daten) {
+    const r = await fetch("/api/" + name, { method: "POST", headers: { "Content-Type": "application/json", "X-Token": TOKEN }, body: JSON.stringify(daten || {}) });
+    const a = await r.json().catch(() => ({ ok: false }));
+    if (!a.ok) throw new Error(a.fehler || "Fehler");
+    return a.daten;
+  }
+  const TIPPS = {
+    anrede: "Oder unten auf „Herr“ / „Frau“ klicken.",
+    gebdat: "Format egal, z. B. 15.03.1972.",
+    strasse: "Tipp: Straße und PLZ/Ort zusammen markieren geht auch.",
+    plzort: "Zum Beispiel: 40212 Düsseldorf",
+    iban: "Leerzeichen werden automatisch gesetzt.",
+  };
+  const istEingebettet = window.parent !== window;
+  let letzte = -1, zu = false;
+
+  function zeige(s) {
+    if (!s.aktiv && s.fertig) {
+      if (!zu) { zu = true; $("ass").hidden = true; $("fertig").hidden = false; if (istEingebettet) setTimeout(() => parent.postMessage("assistent-zu", "*"), 1200); }
+      return;
+    }
+    if (s.version === letzte) return;
+    letzte = s.version;
+    const akt = s.schritte[s.schritt];
+    $("zaehler").textContent = `Feld ${s.schritt + 1} von ${s.gesamt}`;
+    $("balken").style.width = Math.round((s.schritte.filter((x) => x.erledigt).length / s.gesamt) * 100) + "%";
+    $("kunde").textContent = s.name ? "Kunde: " + s.name : "";
+    $("feld").textContent = akt.label;
+    $("tipp").textContent = (s.zwischenablage ? "" : "Strg+C wird hier nicht erkannt – bitte unten einfügen. ") + (TIPPS[akt.feld] || "");
+    $("anredeKnoepfe").hidden = akt.feld !== "anrede";
+    $("liste").innerHTML = s.schritte.map((x, i) =>
+      `<li class="${i === s.schritt ? "akt" : ""}"><span class="${x.erledigt ? "ok" : ""}">${x.erledigt ? "✓" : i === s.schritt ? "▶" : ""}</span><span>${esc(x.label)}</span><span class="w">${esc(x.feld === "gebdat" && /^\d{4}-\d{2}-\d{2}$/.test(x.wert) ? x.wert.split("-").reverse().join(".") : x.wert)}</span></li>`).join("");
+  }
+  async function laden() { try { zeige(await api("assistent_status")); } catch (e) {} }
+  $("handForm").onsubmit = async (e) => {
+    e.preventDefault(); const v = $("hand").value; if (!v.trim()) return;
+    $("hand").value = ""; zeige(await api("assistent_wert", { text: v })); $("hand").focus();
+  };
+  document.querySelectorAll("[data-anrede]").forEach((b) => b.onclick = async () => zeige(await api("assistent_wert", { text: b.dataset.anrede })));
+  $("zurueck").onclick = async () => zeige(await api("assistent_aktion", { aktion: "zurueck" }));
+  $("weiter").onclick = async () => zeige(await api("assistent_aktion", { aktion: "ueberspringen" }));
+  $("ende").onclick = async () => zeige(await api("assistent_aktion", { aktion: "beenden" }));
+  laden();
+  setInterval(laden, 300);
+})();
+</script>
+</body>
+</html>

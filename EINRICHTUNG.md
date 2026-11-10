@@ -88,6 +88,14 @@ Das Programm speichert eine Kopie, die Originaldatei wird nicht verändert.
 
 ---
 
+## Stammdaten aus dem CRM übernehmen
+
+Beim Kunden auf **„Aus CRM übernehmen“** klicken. Ein kleines Fenster erscheint und bleibt im Vordergrund.
+Es zeigt, welches Feld als Nächstes dran ist (Anrede, Vorname, Name, Geburtsdatum, Geburtsort, Straße,
+PLZ/Ort, Ausweisnummer, SV-Nummer, Steuer-ID, IBAN). Im CRM den Wert markieren und **Strg+C** drücken:
+Das Programm trägt ihn ein und springt zum nächsten Feld. Fehlt ein Wert im CRM, auf „Überspringen“
+klicken. Straße und PLZ/Ort können auch zusammen markiert werden. Am Ende die Daten kurz prüfen.
+
 ## Updates
 
 Unter **Einstellungen → Programm-Update** auf **„Nach Updates suchen“** klicken. Gibt es eine neue Version,

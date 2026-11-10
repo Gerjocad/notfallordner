@@ -156,6 +156,7 @@
   // ---------- Kunde ----------
   let speicherTimer = null;
   async function zeigeKunde(id, nachricht) {
+    if (S.assistent && S.kunde && S.kunde.id !== id) { try { await api("assistent_aktion", { aktion: "beenden" }); } catch (e) {} }
     S.ansicht = "kunde"; S.sel = id; S.ergebnis = null; S.tab = "kunde"; S.nfTab = 0;
     try { S.kunde = await api("kunde", { id }); } catch (e) { toast(e.message); return; }
     S.kunde.nachricht = nachricht || null;
@@ -195,15 +196,17 @@
       <div class="head"><div><h1>${esc(k.name)}</h1><div class="meta"><span class="chip ${k.status}">${STATUS[k.status] || k.status}</span>${k.hinweis ? `<span class="chip warn">${esc(k.hinweis)}</span>` : ""}${k.erneuerung ? `<span class="chip warn">Erneuerung ${isoDe(k.erneuerung)}</span>` : ""}<span class="hint" id="gespeichert"></span></div></div>
         <div class="row">
           ${k.status !== "eingeladen" && S.status && S.status.briefkasten.eingerichtet ? `<button type="button" id="linkNeu2">${k.eingang ? "Kontakte erneut anfragen" : "Link für Notfallkontakte"}</button>` : ""}
+          <button type="button" id="btnCrm" title="Stammdaten Feld für Feld aus dem CRM kopieren">Aus CRM übernehmen</button>
           ${k.ordner ? '<button type="button" id="btnOrdner">Ordner öffnen</button>' : ""}
           <button type="button" class="primary" id="btnErstellen">Notfallordner erstellen</button>
         </div></div>
+      ${S.assistent ? '<div class="banner ok"><span><b>Kopier-Assistent läuft.</b> Markieren Sie im CRM das angezeigte Feld und drücken Sie Strg+C – die Werte erscheinen hier automatisch.</span></div>' : ""}
       ${neuHtml}${linkHtml}${ergHtml}
       <div class="checkline" id="checkLine"></div>
       <ul class="issues" id="issues" hidden></ul>
       <div class="card">
         <div class="tabs" role="tablist">${tabs.map(([id, l]) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${S.tab === id}">${l}</button>`).join("")}</div>
-        <div id="formular">${inhalt}</div>
+        <fieldset id="formular" ${S.assistent ? "disabled" : ""} style="border:0;padding:0;margin:0;min-width:0">${inhalt}</fieldset>
       </div>
       <div class="row" style="justify-content:space-between">
         <span class="hint">Änderungen werden automatisch gespeichert.</span>
@@ -229,6 +232,7 @@
       api("kunde_loeschen", { id: k.id }).then(() => { toast("Kunde gelöscht. Die Dateien im Kundenordner bleiben erhalten."); aktualisieren(); zeigeStart(); }).catch((x) => toast(x.message));
     };
     $("btnErstellen").onclick = () => erstellen(false);
+    $("btnCrm").onclick = () => assistentStarten();
   }
 
   function pruefzeile() {
@@ -275,6 +279,40 @@
     } catch (e) { toast(e.message); b.disabled = false; b.textContent = "Notfallordner erstellen"; }
   }
 
+  // ---------- Kopier-Assistent ----------
+  let assTimer = null, assVersion = -1;
+  async function assistentStarten() {
+    try { await speichernJetzt(); } catch (e) {}
+    let s;
+    try { s = await api("assistent_start", { id: S.kunde.id }); } catch (e) { toast(e.message); return; }
+    S.assistent = true; S.tab = "kunde"; assVersion = -1;
+    if (!s.eigenes_fenster) {
+      // kein eigenes Fenster (z. B. im Browser): Assistent schwebend einblenden
+      const f = document.createElement("iframe");
+      f.id = "assFrame"; f.src = "assistent.html#t=" + TOKEN; f.title = "Kopier-Assistent";
+      f.style.cssText = "position:fixed;right:20px;bottom:20px;width:390px;height:560px;border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.3);z-index:45;background:var(--surface)";
+      document.body.appendChild(f);
+    }
+    renderKunde();
+    clearInterval(assTimer);
+    assTimer = setInterval(assistentVerfolgen, 600);
+  }
+  async function assistentVerfolgen() {
+    let s; try { s = await api("assistent_status"); } catch (e) { return; }
+    if (s.version !== assVersion && S.kunde && s.kid === S.kunde.id) {
+      assVersion = s.version;
+      S.kunde = Object.assign(await api("kunde", { id: S.kunde.id }), { nachricht: S.kunde.nachricht });
+      renderKunde();
+    }
+    if (!s.aktiv) {
+      clearInterval(assTimer); S.assistent = false;
+      const f = $("assFrame"); if (f) setTimeout(() => f.remove(), 1200);
+      if (S.kunde) { S.kunde = Object.assign(await api("kunde", { id: S.kunde.id }), { nachricht: S.kunde.nachricht }); renderKunde(); }
+      toast("Stammdaten aus dem CRM übernommen – bitte kurz prüfen");
+    }
+  }
+  window.addEventListener("message", (e) => { if (e.data === "assistent-zu") { const f = $("assFrame"); if (f) f.remove(); } });
+
   async function speichernAbbrechen() { clearTimeout(speicherTimer); speicherTimer = null; }
   async function speichernJetzt() {
     clearTimeout(speicherTimer); speicherTimer = null;
@@ -282,6 +320,7 @@
     let r;
     try { r = await api("kunde_speichern", { id: S.kunde.id, daten: S.kunde.daten, stand: S.kunde.eingang }); }
     catch (e) {
+      if (e.message === "ASSISTENT_AKTIV") return;
       if (e.message === "NEUE_DATEN") { toast("Der Kunde hat gerade seine Notfallkontakte gesendet. Die Ansicht wurde aktualisiert."); await zeigeKunde(S.kunde.id); return; }
       throw e;
     }
